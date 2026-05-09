@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import path, { dirname } from "path";
+import path  from "path";
 import authRoutes from "./src/routes/auth.route.js";
 import messageRoutes from "./src/routes/message.route.js";
 import { connectDB } from "./src/lib/db.js";
