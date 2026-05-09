@@ -4,7 +4,7 @@ const Message = () => {
   return (
     <div>
       
-    </div>
+     </div>
   )
 }
 
