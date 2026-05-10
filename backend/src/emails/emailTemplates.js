@@ -1,5 +1,8 @@
-export function createWelcomeEmailTemplate(name, clientURL){
-    return`
+import User from "../models/User.js";
+
+
+export function createWelcomeEmailTemplate(name, clientURL) {
+  return `
     <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +37,7 @@ export function createWelcomeEmailTemplate(name, clientURL){
                     <tr>
                         <td style="padding: 36px 32px 40px 32px; background: #12141C;">
                             <!-- Dynamic greeting with glowing name -->
-                            <p style="font-size: 24px; font-weight: 700; color: #F1F5F9; margin: 0 0 10px 0; letter-spacing: -0.2px;">Hey {{name}},</p>
+                            <p style="font-size: 24px; font-weight: 700; color: #F1F5F9; margin: 0 0 10px 0; letter-spacing: -0.2px;">Hey ${User._fullName},</p>
                             <p style="font-size: 16px; color: #B4C0E0; margin: 0 0 28px 0; line-height: 1.5;">Welcome to the <strong style="color: #C084FC;">dark side</strong> of messaging — we built Chatify to be fast, private, and beautiful day or night. Connect with friends, share moments, and vibe in real-time. ✨</p>
                             
                             <!-- Feature grid: cards with dark elevated bg -->
@@ -161,5 +164,5 @@ export function createWelcomeEmailTemplate(name, clientURL){
         </tr>
     </table>
 </body>
-</html>`
+</html>`;
 }
