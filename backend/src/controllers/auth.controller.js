@@ -4,7 +4,6 @@ import { generateToken } from "../lib/utils.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 
-
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
 
@@ -12,7 +11,7 @@ export const signup = async (req, res) => {
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
-     console.log(" everything is fine");
+    console.log(" everything is fine");
 
     if (password.length < 6) {
       return res
@@ -24,7 +23,6 @@ export const signup = async (req, res) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ message: "Invalid email format" });
-     
     }
 
     const user = await User.findOne({ email });
@@ -60,15 +58,15 @@ export const signup = async (req, res) => {
         profilePic: newUser.profilePic,
       });
 
-      
       try {
-        await sendWelcomeEmail( savedUser.email, savedUser.fullName, ENV.client_URL)
-        
+        await sendWelcomeEmail(
+          savedUser.email,
+          savedUser.fullName,
+          ENV.client_URL,
+        );
       } catch (error) {
         console.error("Failed to send welcome email:", error);
-        
       }
-
     } else {
       res.status(400).json({ message: "Invalid user data" });
     }
@@ -80,4 +78,32 @@ export const signup = async (req, res) => {
   }
 };
 
+export const login = async (req, res) => {
+  const { email, password } = req.body;
 
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect)
+      return res.status(400).json({ message: "Invalid credentials" });
+
+    generateToken(user._id, res);
+
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilepic: user.profilepic,
+    });
+  } catch (error) {
+    console.error("Error in login controller: ", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const logout = async (_, res) => {
+  res.cookie("jwt","",{maxage:0})
+  res.status(200).json({message:"Logged out successfully"})
+};
