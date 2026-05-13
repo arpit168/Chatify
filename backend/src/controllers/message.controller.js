@@ -62,7 +62,20 @@ export const sendMessage = async (req, res) => {
 
     const senderId = req.user._id;
 
-    let imageUrl = "";
+    if (!text && !image) {
+      return res.status(400).json({ message: "Text or image is required." });
+    }
+    if (senderId.equals(receiverId)) {
+      return res
+        .status(400)
+        .json({ message: "Coannot send messages to yourself." });
+    }
+    const receiverExists = await User.exists({ _id: receiverId });
+    if (!receiverExists) {
+      return res.status(404).json({ message: "Receiver not found" });
+    }
+
+    let imageUrl;
 
     // Upload image only if image exists
     if (image) {
@@ -98,10 +111,7 @@ export const getChatPartners = async (req, res) => {
 
     // Find all messages where logged-in user is sender or receiver
     const messages = await Message.find({
-      $or: [
-        { senderId: loggedInUserId },
-        { receiverId: loggedInUserId },
-      ],
+      $or: [{ senderId: loggedInUserId }, { receiverId: loggedInUserId }],
     });
 
     // Extract unique chat partner IDs
@@ -110,8 +120,8 @@ export const getChatPartners = async (req, res) => {
         messages.map((msg) =>
           msg.senderId.toString() === loggedInUserId.toString()
             ? msg.receiverId.toString()
-            : msg.senderId.toString()
-        )
+            : msg.senderId.toString(),
+        ),
       ),
     ];
 
@@ -121,7 +131,6 @@ export const getChatPartners = async (req, res) => {
     }).select("-password");
 
     res.status(200).json(chatPartners);
-
   } catch (error) {
     console.error("Error in getChatPartners:", error.message);
 
