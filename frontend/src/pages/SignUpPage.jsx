@@ -57,7 +57,7 @@ function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-3 sm:p-4 bg-linear-to-br from-slate-900 via-purple-900/20 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center p-3 sm:p-4 relative overflow-hidden" style={{ background: "var(--bg-app)" }}>
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-60 h-60 sm:w-80 sm:h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
@@ -334,56 +334,6 @@ function SignUpPage() {
         </BorderAnimatedContainer>
       </div>
 
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        @keyframes slideInRight {
-          from {
-            opacity: 0;
-            transform: translateX(50px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fadeIn {
-          animation: fadeIn 0.6s ease-out;
-        }
-        
-        .animate-slideInRight {
-          animation: slideInRight 0.8s ease-out;
-        }
-        
-        .animate-slideDown {
-          animation: slideDown 0.3s ease-out;
-        }
-        
-        .delay-1000 {
-          animation-delay: 1s;
-        }
-      `}</style>
     </div>
   );
 }

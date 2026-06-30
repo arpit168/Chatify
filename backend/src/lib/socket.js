@@ -3,6 +3,7 @@ import http from "http";
 import express from "express";
 import { ENV } from "./env.js";
 import { socketAuthMiddleware } from "../middlewares/socket.auth.middleware.js";
+import User from "../models/User.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -12,32 +13,102 @@ const io = new Server(server, {
     origin: [ENV.CLIENT_URL],
     credentials: true,
   },
+  pingTimeout: 60000,
 });
 
 // apply authentication middleware to all socket connections
 io.use(socketAuthMiddleware);
 
-// we will use this function to check if the user is online or not
+// this is for storing online users
+const userSocketMap = {}; // {userId:socketId}
+
 export function getReceiverSocketId(userId) {
   return userSocketMap[userId];
 }
 
-// this is for storig online users
-const userSocketMap = {}; // {userId:socketId}
+export function getGroupSocketIds(userIds) {
+  return userIds
+    .map(id => userSocketMap[id.toString()])
+    .filter(socketId => socketId);
+}
 
-io.on("connection", (socket) => {
+io.on("connection", async (socket) => {
   console.log("A user connected", socket.user.fullName);
 
   const userId = socket.userId;
   userSocketMap[userId] = socket.id;
 
-  // io.emit() is used to send events to all connected clients
+  // Update user online status in DB
+  try {
+    await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
+  } catch (e) {
+    console.error("Failed to update online status:", e.message);
+  }
+
+  // Broadcast online users to all clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  // with socket.on we listen for events from clients
-  socket.on("disconnect", () => {
+  // ─── TYPING INDICATORS ────────────────────────────────────
+  socket.on("typing", ({ receiverId }) => {
+    const receiverSocketId = userSocketMap[receiverId];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("userTyping", { userId });
+    }
+  });
+
+  socket.on("stopTyping", ({ receiverId }) => {
+    const receiverSocketId = userSocketMap[receiverId];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("userStoppedTyping", { userId });
+    }
+  });
+
+  // ─── READ RECEIPTS / MESSAGE SEEN ─────────────────────────
+  socket.on("markMessagesSeen", ({ senderId }) => {
+    const senderSocketId = userSocketMap[senderId];
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messagesSeen", { by: userId });
+    }
+  });
+
+  // ─── MESSAGE REACTIONS ────────────────────────────────────
+  socket.on("messageReaction", ({ messageId, emoji, receiverId }) => {
+    const receiverSocketId = userSocketMap[receiverId];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageReactionUpdate", { messageId, emoji, userId });
+    }
+  });
+
+  // ─── MESSAGE EDIT ─────────────────────────────────────────
+  socket.on("messageEdited", ({ messageId, newText, receiverId }) => {
+    const receiverSocketId = userSocketMap[receiverId];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageEditedUpdate", { messageId, newText });
+    }
+  });
+
+  // ─── MESSAGE DELETE ───────────────────────────────────────
+  socket.on("messageDeleted", ({ messageId, receiverId, deleteForEveryone }) => {
+    if (deleteForEveryone) {
+      const receiverSocketId = userSocketMap[receiverId];
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("messageDeletedUpdate", { messageId });
+      }
+    }
+  });
+
+  // ─── DISCONNECT ───────────────────────────────────────────
+  socket.on("disconnect", async () => {
     console.log("A user disconnected", socket.user.fullName);
     delete userSocketMap[userId];
+
+    // Update user offline status
+    try {
+      await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
+    } catch (e) {
+      console.error("Failed to update offline status:", e.message);
+    }
+
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });

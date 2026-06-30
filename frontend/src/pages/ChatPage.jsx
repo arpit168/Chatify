@@ -3,7 +3,9 @@ import { useChatStore } from "../store/useChatStore";
 import BorderAnimatedContainer from "../components/BorderAnimatedContainer";
 import ProfileHeader from "../components/ProfileHeader";
 import ActiveTabSwitch from "../components/ActiveTabSwitch";
+import SidebarSearch from "../components/SidebarSearch";
 import ChatsList from "../components/ChatsList";
+import GroupsList from "../components/GroupsList";
 import ContactList from "../components/ContactList";
 import ChatContainer from "../components/ChatContainer";
 import NoConversationPlaceholder from "../components/NoConversationPlaceholder";
@@ -45,7 +47,10 @@ function ChatPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-3 sm:p-4 bg-linear-to-br from-slate-900 via-purple-900/20 to-slate-900 relative overflow-hidden">
+    <div
+      className="min-h-screen w-full flex items-center justify-center p-3 sm:p-4 relative overflow-hidden transition-colors duration-300"
+      style={{ background: "var(--bg-app)" }}
+    >
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-60 h-60 sm:w-80 sm:h-80 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
@@ -62,7 +67,10 @@ function ChatPage() {
 
       {/* Mobile Header */}
       {isMobile && (
-        <div className="fixed top-0 left-0 right-0 z-20 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3 flex items-center justify-between shadow-lg">
+        <div
+          className="fixed top-0 left-0 right-0 z-20 backdrop-blur-xl border-b px-4 py-3 flex items-center justify-between shadow-lg"
+          style={{ background: "var(--bg-sidebar)", borderColor: "var(--border-color)" }}
+        >
           <div className="flex items-center gap-3">
             {selectedUser && showSidebar ? (
               <button
@@ -80,10 +88,13 @@ function ChatPage() {
               </button>
             )}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-linear-to-r from-cyan-400 to-purple-500 rounded-lg flex items-center justify-center">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-md"
+                style={{ background: "var(--accent-gradient)" }}
+              >
                 <MessageCircle className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-lg font-bold bg-linear-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+              <h1 className="text-lg font-bold" style={{ color: "var(--accent-primary)" }}>
                 ChatVerse
               </h1>
             </div>
@@ -108,12 +119,15 @@ function ChatPage() {
           <div className="flex w-full h-full rounded-2xl overflow-hidden shadow-2xl">
             
             {/* LEFT SIDEBAR - Responsive visibility */}
-            <div className={`
-              ${isMobile ? 'fixed inset-0 z-30 transition-transform duration-300 ease-in-out' : 'relative w-80 lg:w-96'}
-              ${isMobile && !showSidebar ? 'transform -translate-x-full' : 'transform translate-x-0'}
-              bg-linear-to-b from-slate-900/95 to-slate-800/95 backdrop-blur-xl flex flex-col
-              ${isMobile ? 'rounded-r-2xl' : ''}
-            `}>
+            <div
+              className={`
+                ${isMobile ? 'fixed inset-0 z-30 transition-transform duration-300 ease-in-out' : 'relative w-80 lg:w-96'}
+                ${isMobile && !showSidebar ? 'transform -translate-x-full' : 'transform translate-x-0'}
+                backdrop-blur-xl flex flex-col border-r
+                ${isMobile ? 'rounded-r-2xl' : ''}
+              `}
+              style={{ background: "var(--bg-sidebar)", borderColor: "var(--border-color)" }}
+            >
               {/* Sidebar Header for Mobile */}
               {isMobile && (
                 <div className="flex items-center justify-between p-4 border-b border-slate-700/50 bg-slate-900/50">
@@ -142,10 +156,15 @@ function ChatPage() {
                 <ActiveTabSwitch />
               </div>
 
+              {/* Search */}
+              <div className={`${isMobile && selectedUser && !showSidebar ? 'hidden' : 'block'}`}>
+                <SidebarSearch />
+              </div>
+
               {/* Chat/Contact Lists */}
               <div className={`flex-1 overflow-y-auto custom-scrollbar ${isMobile && selectedUser && !showSidebar ? 'hidden' : 'block'}`}>
                 <div className="p-3 sm:p-4 space-y-2">
-                  {activeTab === "chats" ? <ChatsList /> : <ContactList />}
+                  {activeTab === "chats" ? <ChatsList /> : activeTab === "groups" ? <GroupsList /> : <ContactList />}
                 </div>
               </div>
 
@@ -173,10 +192,13 @@ function ChatPage() {
             )}
 
             {/* RIGHT SIDE - Chat Area */}
-            <div className={`
-              flex-1 flex flex-col bg-linear-to-br from-slate-900/50 to-slate-800/30 backdrop-blur-sm
-              ${isMobile && !selectedUser ? 'hidden' : 'flex'}
-            `}>
+            <div
+              className={`
+                flex-1 flex flex-col backdrop-blur-sm
+                ${isMobile && !selectedUser ? 'hidden' : 'flex'}
+              `}
+              style={{ background: "var(--bg-card)" }}
+            >
               {selectedUser ? (
                 <>
                   {/* Mobile Chat Header */}
@@ -218,64 +240,6 @@ function ChatPage() {
           </div>
         </BorderAnimatedContainer>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        @keyframes slideInLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-100%);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        .animate-fadeIn {
-          animation: fadeIn 0.6s ease-out;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(51, 65, 85, 0.3);
-          border-radius: 10px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: linear-linear(to bottom, #06b6d4, #8b5cf6);
-          border-radius: 10px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: linear-linear(to bottom, #0891b2, #7c3aed);
-        }
-        
-        .delay-300 {
-          animation-delay: 300ms;
-        }
-        
-        .delay-700 {
-          animation-delay: 700ms;
-        }
-        
-        .delay-1000 {
-          animation-delay: 1000ms;
-        }
-      `}</style>
     </div>
   );
 }
