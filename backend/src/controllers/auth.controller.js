@@ -183,32 +183,42 @@ export const logout = async (_, res) => {
 // ========================= UPDATE PROFILE =========================
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body;
-
-    if (!profilePic) {
-      return res.status(400).json({
-        success: false,
-        message: "Profile picture is required",
-      });
-    }
-
+    const { profilePic, banner, fullName, username, bio, about, privacySettings } = req.body;
     const userId = req.user._id;
 
-    // Upload image to cloudinary
-    const uploadResponse = await cloudinary.uploader.upload(
-      profilePic
-    );
+    const updates = {};
 
-    // Update user
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      {
-        profilePic: uploadResponse.secure_url,
-      },
-      {
-        new: true,
+    if (fullName !== undefined) updates.fullName = fullName;
+    if (username !== undefined) {
+      if (username) {
+        const existing = await User.findOne({ username, _id: { $ne: userId } });
+        if (existing) return res.status(400).json({ success: false, message: "Username already taken" });
+        updates.username = username;
       }
-    ).select("-password");
+    }
+    if (bio !== undefined) updates.bio = bio;
+    if (about !== undefined) updates.about = about;
+    if (privacySettings !== undefined) updates.privacySettings = privacySettings;
+
+    if (profilePic) {
+      if (profilePic.startsWith("data:image")) {
+        const uploadResponse = await cloudinary.uploader.upload(profilePic);
+        updates.profilePic = uploadResponse.secure_url;
+      } else {
+        updates.profilePic = profilePic;
+      }
+    }
+
+    if (banner) {
+      if (banner.startsWith("data:image")) {
+        const uploadResponse = await cloudinary.uploader.upload(banner);
+        updates.banner = uploadResponse.secure_url;
+      } else {
+        updates.banner = banner;
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, { $set: updates }, { new: true }).select("-password");
 
     return res.status(200).json({
       success: true,
@@ -217,10 +227,59 @@ export const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.log("Update Profile Error:", error);
-
     return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+  }
+};
+
+// ========================= BLOCK USER =========================
+export const blockUser = async (req, res) => {
+  try {
+    const { targetId } = req.params;
+    const userId = req.user._id;
+
+    if (userId.toString() === targetId) {
+      return res.status(400).json({ success: false, message: "Cannot block yourself" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { blockedUsers: targetId } },
+      { new: true }
+    ).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      message: "User blocked successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.log("Block User Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// ========================= UNBLOCK USER =========================
+export const unblockUser = async (req, res) => {
+  try {
+    const { targetId } = req.params;
+    const userId = req.user._id;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { blockedUsers: targetId } },
+      { new: true }
+    ).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      message: "User unblocked successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.log("Unblock User Error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };

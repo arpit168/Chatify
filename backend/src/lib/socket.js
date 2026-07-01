@@ -97,6 +97,48 @@ io.on("connection", async (socket) => {
     }
   });
 
+  // ─── WEBRTC AUDIO/VIDEO CALLING SIGNALING ─────────────────
+  socket.on("callUser", ({ userToCall, signalData, from, name, profilePic, callType }) => {
+    const receiverSocketId = userSocketMap[userToCall];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("callUser", {
+        signal: signalData,
+        from,
+        name,
+        profilePic,
+        callType,
+      });
+    }
+  });
+
+  socket.on("answerCall", ({ to, signal }) => {
+    const callerSocketId = userSocketMap[to];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit("callAccepted", signal);
+    }
+  });
+
+  socket.on("endCall", ({ to }) => {
+    const targetSocketId = userSocketMap[to];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("callEnded");
+    }
+  });
+
+  socket.on("rejectCall", ({ to }) => {
+    const callerSocketId = userSocketMap[to];
+    if (callerSocketId) {
+      io.to(callerSocketId).emit("callRejected");
+    }
+  });
+
+  socket.on("iceCandidate", ({ to, candidate }) => {
+    const targetSocketId = userSocketMap[to];
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("iceCandidate", candidate);
+    }
+  });
+
   // ─── DISCONNECT ───────────────────────────────────────────
   socket.on("disconnect", async () => {
     console.log("A user disconnected", socket.user.fullName);

@@ -4,7 +4,7 @@ import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
 import {
   ImageIcon, SendIcon, XIcon, SmileIcon, Paperclip,
-  Mic, Reply, Pencil
+  Mic, Reply, Pencil, FileText
 } from "lucide-react";
 
 const EMOJI_LIST = ["😀","😂","❤️","🔥","👍","👎","🎉","😢","😮","🤔","👏","💯","🙏","✨","💪","🫡"];
@@ -13,7 +13,9 @@ function MessageInput() {
   const { playRandomKeyStrokeSound } = useKeyboardSound();
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
@@ -42,8 +44,8 @@ function MessageInput() {
   }, [emitTyping, emitStopTyping]);
 
   const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!text.trim() && !imagePreview) return;
+    e?.preventDefault();
+    if (!text.trim() && !imagePreview && !filePreview) return;
 
     if (editingMessage) {
       editMessage(editingMessage._id, text.trim());
@@ -56,29 +58,52 @@ function MessageInput() {
     sendMessage({
       text: text.trim(),
       image: imagePreview,
+      file: filePreview,
       replyTo: replyingTo?._id || null,
     });
     setText("");
-    setImagePreview("");
+    setImagePreview(null);
+    setFilePreview(null);
     setShowEmoji(false);
     emitStopTyping();
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  const processFile = (file) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size cannot exceed 10MB");
       return;
     }
     const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result);
-    reader.readAsDataURL(file);
+    if (file.type.startsWith("image/")) {
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+        setFilePreview(null);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      reader.onloadend = () => {
+        setFilePreview({
+          data: reader.result,
+          name: file.name,
+          size: file.size,
+          type: file.type || "application/octet-stream",
+        });
+        setImagePreview(null);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const removeImage = () => {
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    processFile(file);
+  };
+
+  const removeAttachment = () => {
     setImagePreview(null);
+    setFilePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -87,11 +112,37 @@ function MessageInput() {
     inputRef.current?.focus();
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  };
+
   return (
     <div
-      className="border-t transition-colors"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={`border-t transition-all relative ${isDragging ? "bg-indigo-500/10 border-indigo-500" : ""}`}
       style={{ borderColor: "var(--border-color)", background: "var(--bg-sidebar)" }}
     >
+      {isDragging && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-indigo-500/20 backdrop-blur-xs border-2 border-dashed border-indigo-400 rounded-lg">
+          <p className="text-sm font-semibold text-indigo-300">Drop file to attach</p>
+        </div>
+      )}
+
       {/* Reply Preview Bar */}
       {replyingTo && (
         <div
@@ -105,7 +156,7 @@ function MessageInput() {
               Replying to {replyingTo.senderName || "message"}
             </p>
             <p className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-              {replyingTo.text || "📷 Photo"}
+              {replyingTo.text || (replyingTo.image ? "📷 Photo" : "📎 File")}
             </p>
           </div>
           <button onClick={clearReply} className="p-1 rounded-full hover:bg-slate-700/50">
@@ -137,18 +188,28 @@ function MessageInput() {
         </div>
       )}
 
-      {/* Image Preview */}
-      {imagePreview && (
+      {/* Attachment Preview (Image or File) */}
+      {(imagePreview || filePreview) && (
         <div className="px-5 pt-3">
           <div className="relative inline-block">
-            <img
-              src={imagePreview}
-              alt="Preview"
-              className="w-24 h-24 object-cover rounded-xl border shadow-lg"
-              style={{ borderColor: "var(--border-color)" }}
-            />
+            {imagePreview ? (
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="w-24 h-24 object-cover rounded-xl border shadow-lg"
+                style={{ borderColor: "var(--border-color)" }}
+              />
+            ) : (
+              <div className="flex items-center gap-3 p-3 rounded-xl border shadow-lg bg-slate-800/80" style={{ borderColor: "var(--border-color)" }}>
+                <FileText className="w-8 h-8 text-indigo-400 shrink-0" />
+                <div className="text-xs min-w-0 max-w-[160px]">
+                  <p className="font-semibold truncate" style={{ color: "var(--text-main)" }}>{filePreview.name}</p>
+                  <p className="text-slate-400">{(filePreview.size / 1024).toFixed(1)} KB</p>
+                </div>
+              </div>
+            )}
             <button
-              onClick={removeImage}
+              onClick={removeAttachment}
               className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
               type="button"
             >
@@ -158,15 +219,14 @@ function MessageInput() {
         </div>
       )}
 
-      {/* Emoji Picker (simple) */}
+      {/* Emoji Picker */}
       {showEmoji && (
-        <div
-          className="px-5 pt-3 pb-1 flex flex-wrap gap-1.5"
-        >
+        <div className="px-5 pt-3 pb-1 flex flex-wrap gap-1.5">
           {EMOJI_LIST.map((emoji) => (
             <button
               key={emoji}
               onClick={() => insertEmoji(emoji)}
+              type="button"
               className="w-9 h-9 flex items-center justify-center rounded-lg text-lg hover:bg-slate-700/50 transition-colors hover:scale-110"
             >
               {emoji}
@@ -177,28 +237,26 @@ function MessageInput() {
 
       {/* Input Area */}
       <form onSubmit={handleSendMessage} className="flex items-end gap-2 p-3 sm:p-4">
-        {/* Attachment Button */}
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           className="p-2.5 rounded-xl transition-all hover:scale-105"
           style={{
-            color: imagePreview ? "var(--accent-primary)" : "var(--text-muted)",
+            color: imagePreview || filePreview ? "var(--accent-primary)" : "var(--text-muted)",
             background: "var(--bg-input)",
           }}
+          title="Attach image or file"
         >
           <Paperclip className="w-5 h-5" />
         </button>
 
         <input
           type="file"
-          accept="image/*"
           ref={fileInputRef}
-          onChange={handleImageChange}
+          onChange={handleFileChange}
           className="hidden"
         />
 
-        {/* Emoji Toggle */}
         <button
           type="button"
           onClick={() => setShowEmoji(!showEmoji)}
@@ -207,11 +265,11 @@ function MessageInput() {
             color: showEmoji ? "var(--accent-primary)" : "var(--text-muted)",
             background: "var(--bg-input)",
           }}
+          title="Emojis"
         >
           <SmileIcon className="w-5 h-5" />
         </button>
 
-        {/* Text Input */}
         <div className="flex-1 relative">
           <input
             ref={inputRef}
@@ -234,17 +292,16 @@ function MessageInput() {
               color: "var(--text-main)",
               borderRadius: "var(--app-radius)",
             }}
-            placeholder={editingMessage ? "Edit your message..." : "Type a message..."}
+            placeholder={editingMessage ? "Edit your message..." : "Type a message or drop file..."}
           />
         </div>
 
-        {/* Send Button */}
         <button
           type="submit"
-          disabled={!text.trim() && !imagePreview}
+          disabled={!text.trim() && !imagePreview && !filePreview}
           className="p-3 rounded-2xl text-white font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 hover:shadow-lg active:scale-95"
           style={{
-            background: text.trim() || imagePreview ? "var(--accent-gradient)" : "var(--bg-input)",
+            background: text.trim() || imagePreview || filePreview ? "var(--accent-gradient)" : "var(--bg-input)",
             borderRadius: "var(--app-radius)",
           }}
         >
