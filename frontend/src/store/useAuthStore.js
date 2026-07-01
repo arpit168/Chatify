@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
+import { useCallStore } from "./useCallStore";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:4500" : "/";
 
@@ -76,7 +77,27 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Profile updated successfully");
     } catch (error) {
       console.log("Error in update profile:", error);
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to update profile");
+    }
+  },
+
+  blockUser: async (targetId) => {
+    try {
+      const res = await axiosInstance.post(`/auth/block/${targetId}`);
+      set({ authUser: res.data.user || res.data });
+      toast.success("User blocked");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to block user");
+    }
+  },
+
+  unblockUser: async (targetId) => {
+    try {
+      const res = await axiosInstance.post(`/auth/unblock/${targetId}`);
+      set({ authUser: res.data.user || res.data });
+      toast.success("User unblocked");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to unblock user");
     }
   },
 
@@ -91,6 +112,8 @@ export const useAuthStore = create((set, get) => ({
     socket.connect();
 
     set({ socket });
+
+    useCallStore.getState().initCallListeners();
 
     // listen for online users event
     socket.on("getOnlineUsers", (userIds) => {

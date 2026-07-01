@@ -22,6 +22,16 @@ const groupSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    adminIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    inviteCode: {
+      type: String,
+      sparse: true,
+    },
     members: [
       {
         type: mongoose.Schema.Types.ObjectId,

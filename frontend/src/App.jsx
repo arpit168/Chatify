@@ -7,6 +7,8 @@ import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
 import { useEffect } from "react";
 import PageLoader from "./components/PageLoader";
+import CallModal from "./components/CallModal";
+import IncomingCallModal from "./components/IncomingCallModal";
 
 import { Toaster } from "react-hot-toast";
 
@@ -38,6 +40,8 @@ function App() {
         <Route path="/admin" element={authUser && authUser.isAdmin ? <AdminDashboard /> : <Navigate to={"/"} />} />
       </Routes>
 
+      <CallModal />
+      <IncomingCallModal />
       <Toaster />
     </div>
   );

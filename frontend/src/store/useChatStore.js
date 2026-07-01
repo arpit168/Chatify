@@ -65,6 +65,64 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  getMyGroups: async () => {
+    set({ isUsersLoading: true });
+    try {
+      const res = await axiosInstance.get("/groups/all");
+      set({ groups: res.data });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to load groups");
+    } finally {
+      set({ isUsersLoading: false });
+    }
+  },
+
+  updateGroup: async (groupId, data) => {
+    try {
+      const res = await axiosInstance.put(`/groups/${groupId}`, data);
+      set({
+        groups: get().groups.map((g) => (g._id === groupId ? res.data : g)),
+        selectedUser: get().selectedUser?._id === groupId ? { ...res.data, isGroup: true, fullName: res.data.name, profilePic: res.data.avatar } : get().selectedUser,
+      });
+      toast.success("Group updated");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update group");
+    }
+  },
+
+  addGroupMembers: async (groupId, memberIds) => {
+    try {
+      const res = await axiosInstance.post(`/groups/${groupId}/add-members`, { memberIds });
+      set({
+        groups: get().groups.map((g) => (g._id === groupId ? res.data : g)),
+        selectedUser: get().selectedUser?._id === groupId ? { ...res.data, isGroup: true, fullName: res.data.name, profilePic: res.data.avatar } : get().selectedUser,
+      });
+      toast.success("Members added");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to add members");
+    }
+  },
+
+  removeGroupMember: async (groupId, memberId) => {
+    try {
+      const res = await axiosInstance.post(`/groups/${groupId}/remove-member`, { memberId });
+      if (res.data.message === "Group deleted" || memberId === useAuthStore.getState().authUser._id) {
+        set({
+          groups: get().groups.filter((g) => g._id !== groupId),
+          selectedUser: get().selectedUser?._id === groupId ? null : get().selectedUser,
+        });
+      } else {
+        set({
+          groups: get().groups.map((g) => (g._id === groupId ? res.data : g)),
+          selectedUser: get().selectedUser?._id === groupId ? { ...res.data, isGroup: true, fullName: res.data.name, profilePic: res.data.avatar } : get().selectedUser,
+        });
+      }
+      toast.success("Member removed / left");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to remove member");
+    }
+  },
+
   // ─── MESSAGES ──────────────────────────────────────────────
   getMessagesByUserId: async (userId) => {
     set({ isMessagesLoading: true });
@@ -365,6 +423,31 @@ export const useChatStore = create((set, get) => ({
         ),
       });
     });
+
+    socket.on("newGroupCreated", (newGroup) => {
+      const currentGroups = get().groups;
+      if (!currentGroups.some((g) => g._id === newGroup._id)) {
+        set({ groups: [newGroup, ...currentGroups] });
+      }
+    });
+
+    socket.on("newGroupMessage", (newMsg) => {
+      if (selectedUser?.isGroup && selectedUser._id === newMsg.groupId) {
+        set({ messages: [...get().messages, newMsg] });
+      }
+      set({
+        groups: get().groups.map((g) =>
+          g._id === newMsg.groupId ? { ...g, lastMessage: newMsg, updatedAt: new Date().toISOString() } : g
+        ),
+      });
+    });
+
+    socket.on("groupUpdated", (updatedGrp) => {
+      set({
+        groups: get().groups.map((g) => (g._id === updatedGrp._id ? updatedGrp : g)),
+        selectedUser: selectedUser?._id === updatedGrp._id ? { ...updatedGrp, isGroup: true, fullName: updatedGrp.name, profilePic: updatedGrp.avatar } : selectedUser,
+      });
+    });
   },
 
   unsubscribeFromMessages: () => {
@@ -378,5 +461,8 @@ export const useChatStore = create((set, get) => ({
     socket.off("messageDeletedUpdate");
     socket.off("messageReactionUpdate");
     socket.off("messagePinnedUpdate");
+    socket.off("newGroupCreated");
+    socket.off("newGroupMessage");
+    socket.off("groupUpdated");
   },
 }));

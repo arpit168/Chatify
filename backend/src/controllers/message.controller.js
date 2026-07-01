@@ -148,19 +148,23 @@ export const getMessagesByUserId = async (req, res) => {
 // ─── SEND MESSAGE ───────────────────────────────────────────
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, replyTo } = req.body;
+    const { text, image, file, replyTo } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
-    if (!text && !image) {
-      return res.status(400).json({ message: "Text or image is required." });
+    if (!text && !image && !file) {
+      return res.status(400).json({ message: "Text, image, or file is required." });
     }
     if (senderId.equals(receiverId)) {
       return res.status(400).json({ message: "Cannot send messages to yourself." });
     }
-    const receiverExists = await User.exists({ _id: receiverId });
-    if (!receiverExists) {
+    const receiver = await User.findById(receiverId);
+    if (!receiver) {
       return res.status(404).json({ message: "Receiver not found." });
+    }
+
+    if (req.user.blockedUsers?.includes(receiverId) || receiver.blockedUsers?.includes(senderId)) {
+      return res.status(403).json({ message: "Cannot send messages to blocked user." });
     }
 
     let imageUrl;
@@ -169,11 +173,27 @@ export const sendMessage = async (req, res) => {
       imageUrl = uploadResponse.secure_url;
     }
 
+    let fileData = null;
+    if (file) {
+      if (file.data && file.data.startsWith("data:")) {
+        const uploadResponse = await cloudinary.uploader.upload(file.data, { resource_type: "auto" });
+        fileData = {
+          url: uploadResponse.secure_url,
+          name: file.name || "Attachment",
+          size: file.size || 0,
+          type: file.type || "file",
+        };
+      } else {
+        fileData = file;
+      }
+    }
+
     const newMessage = new Message({
       senderId,
       receiverId,
       text,
       image: imageUrl,
+      file: fileData,
       replyTo: replyTo || null,
       status: "sent",
     });

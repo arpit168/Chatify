@@ -6,7 +6,7 @@ import NoChatHistoryPlaceholder from "./NoChatHistoryPlaceholder";
 import MessageInput from "./MessageInput";
 import MessagesLoadingSkeleton from "./MessageLoadingSkeleton";
 import {
-  Reply, Pencil, Trash2, Copy, SmileIcon, Check, CheckCheck, Ban, Star, Pin, Forward, CornerUpRight
+  Reply, Pencil, Trash2, Copy, SmileIcon, Check, CheckCheck, Ban, Star, Pin, Forward, CornerUpRight, FileText, Download
 } from "lucide-react";
 import ForwardMessageModal from "./ForwardMessageModal";
 
@@ -145,7 +145,7 @@ function ChatContainer() {
                           <span className="font-semibold" style={{ color: "var(--accent-primary)" }}>
                             {msg.replyTo.senderId === authUser._id ? "You" : selectedUser.fullName}
                           </span>
-                          <p className="truncate">{msg.replyTo.text || "📷 Photo"}</p>
+                          <p className="truncate">{msg.replyTo.text || (msg.replyTo.image ? "📷 Photo" : "📎 File")}</p>
                         </div>
                       )}
 
@@ -191,6 +191,25 @@ function ChatContainer() {
                                 alt="Shared"
                                 className="rounded-lg max-h-64 w-auto object-cover mb-1.5 cursor-pointer hover:opacity-90 transition-opacity"
                               />
+                            )}
+                            {msg.file && (
+                              <a
+                                href={msg.file.url || msg.file.data}
+                                download={msg.file.name}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 my-1 rounded-xl border transition-all hover:scale-[1.02] shadow-sm bg-black/20"
+                                style={{ borderColor: "rgba(255,255,255,0.1)" }}
+                              >
+                                <FileText className="w-8 h-8 shrink-0 text-indigo-400" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-bold truncate">{msg.file.name}</p>
+                                  <p className="text-[10px] opacity-75">
+                                    {msg.file.size ? `${(msg.file.size / 1024).toFixed(1)} KB` : "Document"}
+                                  </p>
+                                </div>
+                                <Download className="w-4 h-4 shrink-0 opacity-80" />
+                              </a>
                             )}
                             {msg.text && <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>}
                           </>

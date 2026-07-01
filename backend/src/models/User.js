@@ -40,12 +40,38 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
+    banner: {
+      type: String,
+      default: "",
+    },
+    bio: {
+      type: String,
+      default: "",
+      maxlength: 300,
+    },
+    privacySettings: {
+      lastSeen: { type: String, enum: ["everyone", "contacts", "nobody"], default: "everyone" },
+      profilePic: { type: String, enum: ["everyone", "contacts", "nobody"], default: "everyone" },
+      status: { type: String, enum: ["everyone", "contacts", "nobody"], default: "everyone" },
+    },
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   { timestamps: true }
 );
 
 // Index for fast contact/search queries
-userSchema.index({ fullName: "text", email: "text" });
+userSchema.index({ fullName: "text", email: "text", username: "text" });
 
 const User = mongoose.model("User", userSchema);
 
